@@ -11,8 +11,8 @@ import UIKit
 class ViewController: UIViewController {
     
     // Create properties
-    let innerTrackRadius = 100
-    let outerTrackRadius = 150
+    let innerTrackRadius = 108.2
+    let outerTrackRadius = 149.6
     
     // Animations
     func animateStroke(shapeLayer: CAShapeLayer) {
@@ -103,10 +103,12 @@ class ViewController: UIViewController {
         return layer
     }()
     
+    let planetRadius: CGFloat = 20
+    
     // Create planet 1
-    let planet1: UIView = {
+    let venus: UIView = {
         // Init shape layer
-        let r: CGFloat = 20
+        let r: CGFloat = 20 // planetRadius
         let view = UIView(frame:CGRect(x: 0, y: 0, width: r, height: r))
         // Colour & settings
         view.backgroundColor = .blue
@@ -115,9 +117,9 @@ class ViewController: UIViewController {
     }()
     
     // Create planet 2
-    let planet2: UIView = {
+    let earth: UIView = {
         // Init shape layer
-        let r: CGFloat = 20
+        let r: CGFloat = 20 // planetRadius
         let view = UIView(frame:CGRect(x: 0, y: 0, width: r, height: r))
         // Colour & settings
         view.backgroundColor = .red
@@ -125,12 +127,11 @@ class ViewController: UIViewController {
         return view
     }()
     
-    
-    
-    
-    
+    // Create views
     let containerView = UIView()
-
+    var distanceLine: LineView!
+    let path = UIBezierPath()
+    let pathLayer = CAShapeLayer()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -156,35 +157,60 @@ class ViewController: UIViewController {
         view.layer.addSublayer(trackOuter)
         view.addSubview(containerView)
         view.layer.addSublayer(sun)
-        view.addSubview(planet1)
-        view.addSubview(planet2)
+        view.addSubview(venus)
+        view.addSubview(earth)
         
         // Add Animations
-        animateOrbitFor(view: planet1, path: trackInner.path!, duration: 20)
-        animateOrbitFor(view: planet2, path: trackOuter.path!, duration: 30)
+        let const: Double = 2
+        animateOrbitFor(view: venus, path: trackInner.path!, duration: 13.0 / const)
+        animateOrbitFor(view: earth, path: trackOuter.path!, duration: 8.0  / const)
         
+        // Draw distance lines between planets
+//        distanceLine = LineView(frame: view.frame, pointA: getCoordinatesA, pointB: getCoordinatesB)
+//        containerView.addSubview(distanceLine)
         
-        
+        // Init bezier path stroke
+        let rgb: Float = 0.7
+        pathLayer.strokeColor = UIColor(colorLiteralRed: rgb, green: rgb, blue: rgb, alpha: 1.0).cgColor
+        pathLayer.lineWidth = 0.5
+        containerView.layer.addSublayer(pathLayer)
         
         // Start timer
-        let _ = Timer.scheduledTimer(timeInterval: 0.01, target: self, selector: #selector(self.update), userInfo: nil, repeats: true)
+        let fps: TimeInterval = 1 / (30 / const)
+        let _ = Timer.scheduledTimer(timeInterval: fps, target: self, selector: #selector(self.update), userInfo: nil, repeats: true)
             
         
     }
     
-    @objc func update() {
-        // Update planet locations
-        var a = CGPoint(), b = CGPoint()
-        if let aFrame = planet1.layer.presentation()?.frame {
-            a = CGPoint(x: aFrame.origin.x + planet1.frame.width / 2, y: aFrame.origin.y + planet1.frame.height / 2)
-        }
-        if let bFrame = planet2.layer.presentation()?.frame {
-            b = CGPoint(x: bFrame.origin.x + planet1.frame.width / 2, y: bFrame.origin.y + planet1.frame.height / 2)
-        }
+    func drawPath(a: CGPoint, b: CGPoint) {
+        path.move(to: a)
+        path.addLine(to: b)
         
-        // Draw distance lines between planets
-        let distanceLine = LineView(frame: view.frame, pointA: a, pointB: b)
-        containerView.addSubview(distanceLine)
+        path.close()
+        path.stroke()
+        
+        pathLayer.path = path.cgPath
+    }
+    
+    @objc func update() {
+        // Update distance lines between planets
+        //distanceLine.updateLine(x: getCoordinatesA,y: getCoordinatesB)
+        drawPath(a: getCoordinatesA, b: getCoordinatesB)
+    }
+    
+    var getCoordinatesA: CGPoint {
+        // Get the center of planet 1 during animation
+        if let aFrame = venus.layer.presentation()?.frame {
+            return CGPoint(x: aFrame.origin.x + planetRadius / 2, y: aFrame.origin.y + venus.frame.height / 2)
+        }
+        return venus.center
+    }
+    var getCoordinatesB:CGPoint {
+        // Get the center of planet 1 during animation
+        if let bFrame = earth.layer.presentation()?.frame {
+            return CGPoint(x: bFrame.origin.x + planetRadius / 2, y: bFrame.origin.y + venus.frame.height / 2)
+        }
+        return earth.center
     }
     
     
@@ -193,6 +219,7 @@ class ViewController: UIViewController {
 class LineView : UIView {
     
     var pointA, pointB: CGPoint
+    let context = UIGraphicsGetCurrentContext()
     
     init(frame: CGRect, pointA: CGPoint, pointB: CGPoint) {
         self.pointA = pointA
@@ -207,12 +234,20 @@ class LineView : UIView {
     
     
     override func draw(_ rect: CGRect) {
-        if let context = UIGraphicsGetCurrentContext() {
+        if let context = context {
             context.setStrokeColor(UIColor.lightGray.cgColor)
             context.setLineWidth(1)
             context.beginPath()
-            context.move(to: CGPoint(x: pointA.x, y: pointA.y)) // This would be oldX, oldY
-            context.addLine(to: CGPoint(x: pointB.x, y: pointB.y)) // This would be newX, newY
+            context.move(to: pointA) // This would be oldX, oldY
+            context.addLine(to: pointB) // This would be newX, newY
+            context.strokePath()
+        }
+    }
+    
+    func updateLine(x: CGPoint, y: CGPoint) {
+        if let context = context {
+            context.move(to: pointA)
+            context.addLine(to: pointB)
             context.strokePath()
         }
     }
